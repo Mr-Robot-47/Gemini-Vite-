@@ -3,8 +3,11 @@ import sys
 from dotenv import load_dotenv
 import google.generativeai as genai
 from flask import Flask, request, Response, jsonify
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 
 def api_key():
     load_dotenv()
