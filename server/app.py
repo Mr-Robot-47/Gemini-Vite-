@@ -1,24 +1,35 @@
 import os
+import sys
 from dotenv import load_dotenv
 import google.generativeai as genai
+from flask import Flask, request, Response, jsonify
 
-load_dotenv()
-api_key = os.getenv("API_KEY")
+app = Flask(__name__)
 
-if not api_key:
-    raise ValueError("Missing API_KEY in environment. Add it to your .env or pass the correct key name.")
+def api_key():
+    load_dotenv()
+    key = os.getenv("API_KEY")
+    if not key:
+        raise EnvironmentError("Missing API_KEY in environment.")
+    return key
 
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-2.5-flash-lite")
+def model():
+    genai.configure(api_key=api_key())
+    return genai.GenerativeModel("gemini-2.5-flash-lite")
 
-def stream_content():
-    response = model.start_chat()
-    stream = model.generate_content(
-        "Do you know horcruxes",
-        stream=True,
-    )
-    for chunk in stream:
-        print(chunk.text, end="", flush=True)
+def generate_stream(prompt):
+    m = model()
+    m.start_chat()
+    for chunk in m.generate_content(prompt, stream=True):
+        yield chunk.text
+
+@app.route("/generate", methods=["POST"])
+def generate():
+    data = request.get_json()
+    prompt = data.get("prompt", "")
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+    return Response(generate_stream(prompt), mimetype="text/plain")
 
 if __name__ == "__main__":
-    stream_content()
+    app.run(host="0.0.0.0", port=5000)
